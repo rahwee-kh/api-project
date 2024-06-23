@@ -10,12 +10,14 @@ use Carbon\CarbonInterface;
 use Illuminate\Http\Response;
 use App\Http\Tools\ParamTools;
 use App\Exceptions\POSException;
+use App\Jobs\SendVerificationEmail;
 use App\Services\Auth\JwtBuilder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Auth\Events\Registered;
+use Illuminate\Auth\Listeners\SendEmailVerificationNotification;
 use PHPOpenSourceSaver\JWTAuth\Facades\JWTAuth;
 
 class AppManagerLogin
@@ -108,17 +110,19 @@ class AppManagerLogin
     {
         $email = ParamTools::get_value($params, 'email', '');
         $params['email_verified_at'] = null;
+        
         // Check if use is exited
         $email = (new SVUser)->getByEmail($email);
         if($email){
             throw new POSException('Email is already exit', "EXISTED_EMAIL", [], Response::HTTP_BAD_REQUEST);
         }
+
         // Save use with email pending
         $user = User::create($params);
-        // Send email you current email request register
-        event(new Registered($user));
 
-        Mail::to($user->email)->send(new VerifyEmail($user));
+        // Send email you current email request register
+
+        SendVerificationEmail::dispatch($user);
 
     }
 
